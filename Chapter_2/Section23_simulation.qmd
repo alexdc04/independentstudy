@@ -1,0 +1,137 @@
+---
+title: "Section 2.3 simulation"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(mvtnorm)
+```
+
+In Section 2.3 of *Elements of Statistical Learning*, the authors compare two classification methods:
+
+-   a method based on least-squares regression
+
+-   classification by (the vote of) k-nearest neighbors
+
+They
+
+# Random numbers and random vectors
+
+We can generate random numbers drawn from a variety of distributions using commands such as `rnorm`:
+
+```{r}
+rnorm(n = 10, mean = 1, sd = 2)
+```
+
+We loaded the `mvtnorm` package above to generate random vectors drawn from multivariate normal (Gaussian) distributions (\[<https://en.wikipedia.org/wiki/Multivariate_normal_distribution>\]). Full documentation for the package is here:
+
+\[<https://cran.r-project.org/web/packages/mvtnorm/mvtnorm.pdf>\]
+
+Example syntax for generating random vectors:
+
+```{r}
+rmvnorm(n = 10, mean = c(1, 2), sigma = diag(c(3, 4)))
+```
+
+This command draws 10 random vectors (recorded as row vectors) from the bivariate normal distribution with mean `c(1, 2)` (vector with first component `1` and second component `2`) and covariance matrix with 3 and 4 on the main diagonal (and 0s off the main diagonal.
+
+```{r}
+diag(c(3, 4))
+```
+
+Another way to use `diag` is like this, where `diag(5)` (for example) gives the 5-by-5 identity matrix:
+
+```{r}
+diag(5)
+```
+
+The covariance matrix could be any "positive definite" symmetric k-by-k matrix, where the mean vector has length k. The "positive definite" condition is a matrix version of the requirement that the variance of a univariate normal distribution be positive. A symmetric 2-by-2 matrix, for example, is positive definite if and only if its upper-left corner is positive and its determinant is positive. (The positive-definite condition also comes up in multivariable calculus in the classification of critical points using the Hessian matrix of second partials.)
+
+# Scenario 1
+
+On page 13 of *Elements of Statistical Learning*, the authors write about two classification scenarios for random data. Here is their description of the first scenario:
+
+"The training data in each class were generated from bivariate Gaussian distributions with uncorrelated components and diﬀerent means."
+
+They describe this situation later as "one Gaussian for each class." They tell us that "we will see in Chapter 4 that a linear decision boundary is the best one can do, and that our estimate is almost optimal. The region of overlap is inevitable, and future data to be predicted will be plagued by this overlap as well."
+
+Let's simulate classification data from scenario 1 to understand it better.
+
+We will have two classes:
+
+-   Orange cluster centered at (1, 1).
+
+-   Blue cluster centered at (-1, -1).
+
+The code below doesn't use the `rmvnorm` command but rather samples the x- and y-components independently. In effect, for orange, we sample from the bivariate normal distribution with mean `c(1, 1)` and with covariance matrix `4 * I`, where `I` is the 2-by-2 identity matrix.
+
+```{r}
+orange_center <- c(1, 1)
+blue_center <- c(-1, -1)
+
+orange <- tibble(x = rnorm(100, mean = orange_center[1], sd = 2),
+                 y = rnorm(100, mean = orange_center[2], sd = 2), color = 1)
+blue <- tibble(x = rnorm(100, mean = -1, sd = 2),
+               y = rnorm(100, mean = -1, sd = 2), color = 0)
+training <- rbind(orange, blue)
+```
+
+```{r}
+head(training)
+```
+
+```{r}
+fit <- lm(color ~ x + y, data = training)
+```
+
+```{r}
+summary(fit)
+```
+
+```{r}
+intercept <- coef(fit)[1]
+coef_x <- coef(fit)[2]
+coef_y <- coef(fit)[3]
+```
+
+```         
+colorhat = intecept + coef_x * x + coef_y * y
+```
+
+Boundary between orange and blue is where this function is 0.5.
+
+```         
+0.5 = intercept + coef_x * x + coef_y * y
+y = (intercept - 0.5) / (-coef_y) + coef_x / (-coef_y) * x 
+```
+
+```{r}
+ggplot(data = training) +
+  geom_point(mapping = aes(x = x, y = y, color = factor(color))) +
+  scale_color_manual(values = c("0" = "blue", "1" = "orange")) +
+  geom_abline(intercept = (intercept - 0.5) / (-coef_y), slope = coef_x / (-coef_y))
+```
+
+# Scenario 2
+
+1.  Reread the description of scenario 2 and try to simulate data and graph.
+2.  Fit a linear classification model as above and graph the linear boundary between the orange and blue zones.
+
+Common distribution for centers is mean (0, 0) covariance matrix I_2
+
+```{r}
+orange_centers <- tibble(x = rnorm(10, 0, 1), y = rnorm(10, 0, 1))
+blue_centers <- tibble(x = rnorm(10, 0, 1), y = rnorm(10, 0, 1))
+```
+
+Write a for loop (??) to fill a data table with 100 orange points and 100 blue points.
+
+```{r}
+
+```
+
+# The in-between scenario
+
+The next step is to understand what the authors did with their actual simulation, which uses a data-generating process between scenario 1 and scenario 2.
