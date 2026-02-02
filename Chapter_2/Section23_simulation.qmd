@@ -129,7 +129,36 @@ blue_centers <- tibble(x = rnorm(10, 0, 1), y = rnorm(10, 0, 1))
 Write a for loop (??) to fill a data table with 100 orange points and 100 blue points.
 
 ```{r}
+orange_matrix <- matrix(, nrow = 100, ncol = 3)
+blue_matrix <- matrix(,nrow = 100, ncol = 3)
 
+for (i in 1:100) {
+  rand_blue <- sample(1:10)
+  rand_orange <- sample(1:10)
+  
+  blue_center <- c(blue_centers$x[rand_blue], blue_centers$y[rand_blue])
+  orange_center <- c(orange_centers$x[rand_orange], orange_centers$y[rand_orange])
+  
+  blue_point <- rnorm(2, mean = blue_center, sd = sqrt(1/5))
+  orange_point <- rnorm(2, mean = orange_center, sd = sqrt(1/5))
+  
+  blue_matrix[i, ] <- c(blue_point, 0)
+  orange_matrix[i, ] <- c(orange_point, 1)
+}
+
+colnames(blue_matrix) <- c("x", "y", "color")
+colnames(orange_matrix) <- c("x", "y", "color")
+
+blue <- as_tibble(blue_matrix)
+orange <- as_tibble(orange_matrix)
+
+training <- rbind(blue, orange)
+```
+
+```{r}
+ggplot(data = training) +
+  geom_point(mapping = aes(x = x, y = y, color = factor(color))) +
+  scale_color_manual(values = c("0" = "blue", "1" = "orange"))
 ```
 
 # The in-between scenario
