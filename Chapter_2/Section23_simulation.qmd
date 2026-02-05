@@ -162,6 +162,7 @@ ggplot(data = training) +
 ```
 
 ```{r}
+{r}
 training_frame = as.data.frame(training)
 knn_model <- train(
   as.factor(color) ~ x + y,
@@ -169,11 +170,18 @@ knn_model <- train(
   method = "knn"
 )
 
-knn_grid <- expand.grid(x = seq(-3, 3, by = 0.01), y = seq(-3, 3, by = 0.01))
+knn_grid <- expand.grid(x = seq(-3, 3, by = 0.05), y = seq(-3, 3, by = 0.05))
 
 knn_pred_grid <- predict(knn_model, newdata = knn_grid)
 
-knn_grid$prediction <- knn_pred_grid
+predicted_probs <- matrix(as.numeric(knn_pred_grid),
+                          nrow = length(seq(-3, 3, by = 0.05)),
+                          ncol = length(seq(-3, 3, by = 0.05)))
+
+contour(seq(-3, 3, by = 0.05), seq(-3, 3, by = 0.05), predicted_probs, main = "KNN Decision Boundary")
+
+points(knn_grid, pch = ".", cex = 5, col = knn_pred_grid)
+box()
 ```
 
 # The in-between scenario
