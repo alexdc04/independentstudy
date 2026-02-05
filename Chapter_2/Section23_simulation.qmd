@@ -161,6 +161,21 @@ ggplot(data = training) +
   scale_color_manual(values = c("0" = "blue", "1" = "orange"))
 ```
 
+```{r}
+training_frame = as.data.frame(training)
+knn_model <- train(
+  as.factor(color) ~ x + y,
+  data = training_frame,
+  method = "knn"
+)
+
+knn_grid <- expand.grid(x = seq(-3, 3, by = 0.01), y = seq(-3, 3, by = 0.01))
+
+knn_pred_grid <- predict(knn_model, newdata = knn_grid)
+
+knn_grid$prediction <- knn_pred_grid
+```
+
 # The in-between scenario
 
 The next step is to understand what the authors did with their actual simulation, which uses a data-generating process between scenario 1 and scenario 2.
