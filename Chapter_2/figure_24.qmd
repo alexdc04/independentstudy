@@ -107,6 +107,12 @@ testing_frame = as.data.frame(testing)
 
 errors = tibble(k = list_ks, train_error = 0, test_error = 0)
 
+list_ks = c(1, 2, 3, 4, 5, 10, 20, 35, 50, 100, 125, 150)
+training_frame = as.data.frame(training)
+testing_frame = as.data.frame(testing)
+
+errors = tibble(k = list_ks, train_error = 0, test_error = 0)
+
 for (k in list_ks) {
   knn_model <- train(
     as.factor(color) ~ x + y,
@@ -115,6 +121,12 @@ for (k in list_ks) {
     tuneGrid = expand.grid(k = k)
   )
   
+  knn_test <- predict(knn_model, newdata = testing_frame)
+  knn_test_n <- as.numeric(knn_test)
   
+  errors$train_error[errors$k == k] <- 1 - knn_model$results$Accuracy
+  errors$test_error[errors$k == k] <- 1 - sum(knn_test_n == testing_frame$color) / 10000
 }
+
 ```
+
