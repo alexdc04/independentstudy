@@ -1,0 +1,118 @@
+---
+title: "figure 2.4"
+format: html
+editor: visual
+---
+
+# Creating Figure 2.4
+
+## Create training data
+
+```{r}
+library(tidyverse)
+library(mvtnorm)
+library(caret)
+```
+
+Create centers that are either orange or blue with std. dev. of 1; orange centers are centered on (0,1) and blue centers on (1,0), where the x and y values are independent of each other.
+
+```{r}
+orange_centers <- tibble(x = rnorm(10, 0, 1), y = rnorm(10, 1, 1))
+blue_centers <- tibble(x = rnorm(10, 1, 1), y = rnorm(10, 0, 1))
+```
+
+```{r}
+orange_matrix <- matrix(, nrow = 100, ncol = 3)
+blue_matrix <- matrix(,nrow = 100, ncol = 3)
+
+for (i in 1:100) {
+  rand_blue <- sample(1:10)
+  rand_orange <- sample(1:10)
+  
+  blue_center <- c(blue_centers$x[rand_blue], blue_centers$y[rand_blue])
+  orange_center <- c(orange_centers$x[rand_orange], orange_centers$y[rand_orange])
+  
+  blue_point <- rnorm(2, mean = blue_center, sd = sqrt(1/5))
+  orange_point <- rnorm(2, mean = orange_center, sd = sqrt(1/5))
+  
+  blue_matrix[i, ] <- c(blue_point, 0)
+  orange_matrix[i, ] <- c(orange_point, 1)
+}
+
+colnames(blue_matrix) <- c("x", "y", "color")
+colnames(orange_matrix) <- c("x", "y", "color")
+
+blue <- as_tibble(blue_matrix)
+orange <- as_tibble(orange_matrix)
+
+training <- rbind(blue, orange)
+```
+
+```{r}
+ggplot(data = training) +
+  geom_point(mapping = aes(x = x, y = y, color = factor(color))) +
+  scale_color_manual(values = c("0" = "blue", "1" = "orange"))
+```
+
+## Create testing data
+
+The authors generated 10,000 samples of test data. However, they did not specify where this data comes from. In order to simplify the myriad of areas where "error" can come from, I increased the variance and slightly changed the location of the centers.
+
+```{r}
+test_orange_matrix <- matrix(, nrow = 5000, ncol = 3)
+test_blue_matrix <- matrix(,nrow = 5000, ncol = 3)
+
+for (i in 1:5000) {
+  rand_blue <- sample(1:10)
+  rand_orange <- sample(1:10)
+  
+  blue_center <- c(blue_centers$x[rand_blue], blue_centers$y[rand_blue])
+  orange_center <- c(orange_centers$x[rand_orange], orange_centers$y[rand_orange])
+  
+  blue_point <- rnorm(2, mean = blue_center, sd = sqrt(1/5))
+  orange_point <- rnorm(2, mean = orange_center, sd = sqrt(1/5))
+  
+  test_blue_matrix[i, ] <- c(blue_point, 0)
+  test_orange_matrix[i, ] <- c(orange_point, 1)
+}
+
+colnames(test_blue_matrix) <- c("x", "y", "color")
+colnames(test_orange_matrix) <- c("x", "y", "color")
+
+blue <- as_tibble(test_blue_matrix)
+orange <- as_tibble(test_orange_matrix)
+
+testing <- rbind(blue, orange)
+```
+
+```{r}
+ggplot(data = testing) +
+  geom_point(mapping = aes(x = x, y = y, color = factor(color)), alpha = 0.1) +
+  scale_color_manual(values = c("0" = "blue", "1" = "orange"))
+```
+
+## Creating the figure
+
+Figure 2.4 shows the training and testing error for various values of k in a K-nearest neighbors classifier, with a test set of size 10,000 and a training set as generated above. In addition, it shows the optimal Bayes error rate.
+
+```{r}
+list_ks = c(1, 2, 3, 4, 5, 10, 20, 35, 50, 100, 125, 150)
+training_frame = as.data.frame(training)
+testing_frame = as.data.frame(testing)
+
+errors = tibble(k = list_ks, train_error = 0, test_error = 0)
+
+for (k in list_ks) {
+  knn_model <- train(
+    as.factor(color) ~ x + y,
+    data = training_frame,
+    method = "knn",
+    tuneGrid = expand.grid(k = k)
+  )
+  
+  knn_test <- predict(knn_model, newdata = testing_frame)
+  
+  errors$train_error[errors$k == k] <- 1 - knn_model$results$Accuracy
+  errors$test_error[errors$k == k] <- 1 - sum(knn_test == testing_frame$color) / 10000
+}
+```
