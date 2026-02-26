@@ -1,0 +1,151 @@
+---
+title: "chapter_6_lab"
+format: html
+editor: visual
+---\
+---
+
+# Libraries
+
+Load the libraries.
+
+```{r}
+library(tidyverse)
+library(glmnet)
+library(ISLR2)
+library(leaps)
+```
+
+# EDA and Preprocessing
+
+This is some minor exploratory data analysis.
+
+```{r}
+names(Hitters)
+dim(Hitters)
+sum(is.na(Hitters$Salary))
+
+Hitters <- na.omit(Hitters)
+dim(Hitters)
+```
+
+I skipped the best subset selection portion of the lab: the rest of 6.5.1. This first section generates a matrix, transforming all qualitative predictors into dummy variables. I also fit the ridge regression model, with 100 different lambda values, spanning from 10\^-2 to 10\^10.
+
+```{r}
+X <- model.matrix(Salary ~ ., Hitters)[, -1]
+y <- Hitters$Salary
+
+grid <- 10^seq(10, -2, length = 100)
+ridge.mod <- glmnet(X, y, alpha = 0, lambda = grid)
+```
+
+This cell will split the data into training and testing data.
+
+```{r}
+set.seed(1)
+train <- sample(1:nrow(X), nrow(X) / 2)
+test <- (-train)
+
+y.test <- y[test]
+```
+
+# Ridge regression
+
+This identifies different values of lambda, observes the coefficients, and gets the L2 norm, or the length by Euclidean distance.
+
+```{r}
+ridge.mod$lambda[5]
+coef(ridge.mod)[, 5]
+sqrt(sum(coef(ridge.mod)[-1, 5]^2))
+```
+
+```{r}
+ridge.mod$lambda[25]
+coef(ridge.mod)[, 25]
+sqrt(sum(coef(ridge.mod)[-1, 25]^2))
+```
+
+```{r}
+ridge.mod$lambda[95]
+coef(ridge.mod)[, 95]
+sqrt(sum(coef(ridge.mod)[-1, 95]^2))
+```
+
+The predict() function is used to get the ridge coefficients for a new lambda value.
+
+```{r}
+predict(ridge.mod, s = 100, type = "coefficients")[1:20, ]
+```
+
+We can fit the ridge regression model to the training set and gather its mean squared error (MSE) on the test set. This uses a lambda value of 4. The lower part of the cell just uses an intercept.
+
+```{r}
+ridge.mod <- glmnet(X[train, ], y[train], alpha = 0, lambda = grid, thresh = 1e-12)
+ridge.pred <- predict(ridge.mod, s = 4, newx = X[test, ])
+mean((ridge.pred - y.test) ^ 2)
+
+mean((mean(y[train]) - y.test) ^ 2)
+```
+
+Here is a least squares model, or a ridge model with a lambda value of 0.
+
+```{r}
+ridge.pred <- predict(ridge.mod, s = 0, newx = X[test, ], exact = T, x = X[train, ], y = y[train])
+mean((ridge.pred - y.test) ^ 2)
+
+lm(y ~ X, subset = train)
+predict(ridge.mod, s = 0, exact = T, type = "coefficients", x = X[train, ], y = y[train])[1:20, ]
+```
+
+Using the cross-validation function, I can find the optimal value of lambda.
+
+```{r}
+set.seed(1)
+cv.out <- cv.glmnet(X[train, ], y[train], alpha = 0)
+plot(cv.out)
+
+best_lambda <- cv.out$lambda.min
+best_lambda
+
+ridge.pred <- predict(ridge.mod, s = best_lambda, newx = X[test, ])
+mean((ridge.pred - y.test) ^ 2)
+```
+
+This refits the ridge model on the full data set.
+
+```{r}
+out <- glmnet(X, y, alpha = 0)
+predict(out, type = "coefficients", s = best_lambda)[1:20, ]
+```
+
+This shows that a properly cross-validated ridge regression model can outperform a least squares model.
+
+# Lasso regression
+
+This cell fits a lasso model where alpha is equal to 1.
+
+```{r}
+lasso.mod <- glmnet(X[train, ], y[train], alpha = 1, lambda = grid)
+plot(lasso.mod)
+```
+
+This cell identifies the best lambda value of \~9.29 and calculates is test set MSE of \~143,674.
+
+```{r}
+set.seed(1)
+cv.out <- cv.glmnet(X[train, ], y[train], alpha = 1)
+plot(cv.out)
+
+best_lambda <- cv.out$lambda.min
+best_lambda
+lasso.pred <- predict(lasso.mod, s = best_lambda, newx = X[test, ])
+mean((lasso.pred - y.test) ^ 2)
+```
+
+This cell fits a lasso regression model using the above best lambda value. It is worth noting that, by comparison to the ridge regression model, some of these coefficients are collapsed to zero.
+
+```{r}
+out <- glmnet(X, y, alpha = 1, lambda = grid)
+lasso.coef <- predict(out, type = "coefficients", s = best_lambda)[1:20, ]
+lasso.coef
+```
