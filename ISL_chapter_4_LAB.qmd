@@ -1,0 +1,182 @@
+---
+title: "ISL_chapter_4_lab"
+format: html
+editor: visual
+---
+
+# ISL Chapter 4 Lab
+
+## Libraries
+
+```{r}
+library(tidyverse)
+library(ISLR2)
+library(MASS)
+```
+
+## EDA and Preprocessing
+
+```{r}
+names(Smarket)
+dim(Smarket)
+summary(Smarket)
+```
+
+The pairs() function plots all of the variables in Smarket to each other, but it is difficult to read and the R documentation doesn't provide a way to expand the plots.
+
+```{r}
+pairs(Smarket)
+```
+
+The cor() function "produces a matrix that contains all of the pairwise correlations among the predictors in a data set". Direction is qualitative so it must be ignored.
+
+```{r}
+cor(Smarket[, -9])
+```
+
+The attach() function allows us to call the variables directly by name without having to use dollar sign notation.
+
+```{r}
+attach(Smarket)
+plot(Volume)
+```
+
+## Logistic Regression
+
+We fit a logistic regression model to predict Direction, using Lag1-5 and Volume. We see that the P-value for Lag1 is the lowest yet still large. This doesn't show a clear connection between itself and Direction. The authors use the \$coef function in the following cell but it only shows the coefficients which are already shown by summary().
+
+```{r}
+glm.fits <- glm(
+  Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,
+  data = Smarket, family = binomial
+)
+
+summary(glm.fits)
+```
+
+Given the values of the predictors, print the probabilities as P(Y = 1 \| X). These probabilities are computed on the training data. The first ten probabilities are printed here, with probabilities greater than 0.5 meaning a higher likelihood of the market going up rather than going down.
+
+```{r}
+glm.probs <- predict(glm.fits, type = "response")
+glm.probs[1:10]
+contrasts(Direction)
+```
+
+We create a new vector, glm.pred, to convert these probabilities into predictions as to whether or not the market will go up or down. The rep() function duplicates elements of vectors or lists.
+
+```{r}
+glm.pred <- rep("Down", 1250)
+glm.pred[glm.probs > 0.5] = "Up"
+```
+
+Here we print the fraction of correct predictions and a confusion matrix for this vector compared to the true value of Direction. This fraction is the *training error*.
+
+```{r}
+table(glm.pred, Direction)
+mean(glm.pred == Direction)
+```
+
+To combat this, only observations from 2001 to 2004 will be used to train the data, and hold out data from 2005.
+
+```{r}
+training <- (Year < 2005)
+Smarket.2005 <- Smarket[!training,]
+dim(Smarket.2005)
+Direction.2005 <- Direction[!training]
+```
+
+We fit a new logistic regression model on this training subset and get its predicted probabilities on the 2005 data.
+
+```{r}
+glm.fits <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,
+                data = Smarket, family = binomial, subset = training)
+glm.probs <- predict(glm.fits, Smarket.2005, type = "response")
+```
+
+Now we repeat the same steps as above; computing a confusion matrix and getting the testing error. We see that it's 0.52, or slightly worse than random guessing.
+
+```{r}
+glm.pred <- rep("Down", 252)
+glm.pred[glm.probs > 0.5] <- "Up"
+table(glm.pred, Direction.2005)
+Direction.2005
+
+mean(glm.pred == Direction.2005)
+mean(glm.pred != Direction.2005)
+```
+
+We can go back and observe the P-values for each coefficient calculated earlier. The lowest P-values belonged to Lag1, Lag2, and Volume, and we will only use these first two predictors. The training error and testing error have gone down.
+
+```{r}
+glm.fits <- glm(Direction ~ Lag1 + Lag2, data = Smarket,
+                family = binomial, subset = training)
+glm.probs <- predict(glm.fits, Smarket.2005, type = "response")
+glm.pred <- rep("Down", 252)
+glm.pred[glm.probs > 0.5] <- "Up"
+table(glm.pred, Direction.2005)
+Direction.2005
+mean(glm.pred == Direction.2005)
+106 / (106 + 76)
+```
+
+Now we test the model for specific models of Lag1 and Lag2.
+
+```{r}
+predict(glm.fits, newdata = data.frame(Lag1 = c(1.2, 1.5), Lag2 = c(1.1, -0.8)), type = "response")
+
+```
+
+## Linear Discriminant Analysis (LDA)
+
+Now we fit an LDA model for the Smarket data using only Lag1 and Lag2. The coefficients
+
+```{r}
+lda.fit <- lda(Direction ~ Lag1 + Lag2, data = Smarket, subset = training)
+lda.fit
+plot(lda.fit)
+```
+
+Here we compute the proportion of correctly predicted cases and compute a confusion matrix for the LDA model. The authors then use the sum() function to recreate the predictions from lda.pred\$class. The posterior class is a matrix "whose *k*th column contains the posterior probability that the corresponding observation belongs to the *k*th class". Posterior probability is computed via Bayes' theorem and is the probability of an event occurring after updating the prior probability.
+
+```{r}
+lda.pred <- predict(lda.fit, Smarket.2005)
+names(lda.pred)
+
+lda.class <- lda.pred$class
+table(lda.class, Direction.2005)
+
+mean(lda.class == Direction.2005)
+```
+
+```{r}
+sum(lda.pred$posterior[, 1] >= .5) # down
+sum(lda.pred$posterior[, 1] < .5) # up
+
+lda.pred$posterior[1:20, 1]
+lda.class[1:20]
+```
+
+The authors then demonstrate the effect of increasing the decision threshold from 0.5 to 0.9, which results in zero cases meeting the required threshold.
+
+## Quadratic Discriminant Analysis
+
+We will now fit a QDA model to the data, using the qda() function.
+
+```{r}
+qda.fit <- qda(Direction ~ Lag1 + Lag2, data = Smarket, subset = training)
+qda.fit
+```
+
+```{r}
+qda.class <- predict(qda.fit, Smarket.2005)$class
+table(qda.class, Direction.2005)
+Direction.2005
+
+mean(qda.class == Direction.2005)
+```
+
+We observe that the QDA's model accuracy is the highest thus far, at nearly 0.6, which the authors remark is quite impressive for stock market data.
+
+## Naive Bayes
+
+## K-Nearest Neighbors
