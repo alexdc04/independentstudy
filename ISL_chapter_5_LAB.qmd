@@ -1,0 +1,99 @@
+---
+title: "ISL_chapter_5_lab"
+format: html
+editor: visual
+---
+
+# ISL Chapter 5 Lab
+
+## Libraries
+
+```{r}
+library(tidyverse)
+library(ISLR2)
+library(boot)
+```
+
+## The Validation Set Approach
+
+First, we set the seed and select a subset of half of the original 392 observations.
+
+```{r}
+set.seed(1)
+training <- sample(392, 196)
+```
+
+We then fit a linear regression model to predict MPG with horsepower using the raining data. We then calculate its estimated MSE.
+
+```{r}
+lm.fit <- lm(mpg ~ horsepower, data = Auto, subset = training)
+attach(Auto)
+mean((mpg - predict(lm.fit, Auto))[-training] ^ 2)
+```
+
+Next, we fit quadratic and cubic regression models.
+
+```{r}
+qm.fit <- lm(mpg ~ poly(horsepower, 2), data = Auto, subset = training)
+mean((mpg - predict(qm.fit, Auto))[-training] ^ 2)
+
+cm.fit <- lm(mpg ~ poly(horsepower, 3), data = Auto, subset = training)
+mean((mpg - predict(cm.fit, Auto))[-training] ^ 2)
+```
+
+We can repeat this process with a different seed to see new results.
+
+```{r}
+set.seed(2)
+training <- sample(392, 196)
+
+lm.fit <- lm(mpg ~ horsepower, data = Auto, subset = training)
+mean((mpg - predict(lm.fit, Auto))[-training]^2)
+
+qm.fit <- lm(mpg ~ poly(horsepower, 2), data = Auto, subset = training)
+mean((mpg - predict(qm.fit, Auto))[-training]^2)
+
+cm.fit <- lm(mpg ~ poly(horsepower, 3), data = Auto, subset = training)
+mean((mpg - predict(cm.fit, Auto))[-training]^2)
+```
+
+The trend with a seed value of 2, however, shows a similar result to a seed value of 1. The quadratic model seems to be the best-fitting model compared to a linear or cubic model.
+
+## Leave-One-Out CV
+
+The glm() function can perform linear regression without a family argument.
+
+```{r}
+glm.fit <- glm(mpg ~ horsepower, data = Auto)
+cv.err <- cv.glm(Auto, glm.fit)
+cv.err$delta
+```
+
+The delta vector contains the cross-validation results.
+
+Changing the degree of the polynomial does not yield a significant drop after increasing from linear to quadratic.
+
+```{r}
+cv.error <- rep(0, 10)
+for (i in 1:10) {
+  glm.fit <- glm(mpg ~ poly(horsepower, i), data = Auto)
+  cv.error[i] <- cv.glm(Auto, glm.fit)$delta[1]
+}
+cv.error
+```
+
+## k-Fold Cross-Validation
+
+cv.glm() can be used to implement k-fold CV.
+
+```{r}
+set.seed(17)
+cv.error.10 <- rep(0, 10)
+for (i in 1:10) {
+  glm.fit <- glm(mpg ~ poly(horsepower, i), data = Auto)
+  cv.error.10[i] <- cv.glm(Auto, glm.fit, K = 10)$delta[1]
+}
+cv.error.10
+```
+
+As above, using a cubic or greater degree polynomial doesn't seem to yield a lower test error.
